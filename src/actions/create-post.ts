@@ -1,4 +1,4 @@
-'use server';
+"use server";
 import { auth } from "@/helpers/auth";
 import { z } from "zod";
 import type { Post } from "@prisma/client";
@@ -8,44 +8,81 @@ import paths from "@/helpers/paths";
 import { revalidatePath } from "next/cache";
 
 const createPostSchema = z.object({
-    title: z.string().min(3),
-    content: z.string().min(5).max(255),
+  title: z.string().min(3),
+  content: z.string().min(5).max(255),
+});
+
+interface CreatePostFormState {
+  errors: {
+    title?: string[];
+    content?: string[];
+    _form?: string[];
+  };
+}
+
+export async function createPost(
+  slug: string,
+  formState: CreatePostFormState,
+  formData: FormData
+): Promise<CreatePostFormState> {
+  const result = createPostSchema.safeParse({
+    title: formData.get("title"),
+    content: formData.get("content"),
   });
 
-  interface CreatePostFormState {
-    errors: {
-      title?: string[];
-      content?: string[];
-      _form?: string[];
+  if (!result.success) {
+    return {
+      errors: result.error.flatten().fieldErrors,
     };
   }
 
-export async function createPost(
-    formState: CreatePostFormState,
-    formData: FormData
-  ): Promise<CreatePostFormState> {
-    
-    const result = createPostSchema.safeParse({
-        title: formData.get('title'),
-        content: formData.get('content')
+  const session = await auth();
+  if (!session || !session.user) {
+    return {
+      errors: {
+        _form: ["You must be signed in to create a topic!"],
+      },
+    };
+  }
+
+  const topic = await db.topic.findFirst({
+    where: { slug },
+  });
+
+  if (!topic) {
+    return {
+      errors: {
+        _form: ["Cannot find this topic"],
+      },
+    };
+  }
+
+  let post: Post;
+  try {
+    post = await db.post.create({
+      data: {
+        title: result.data.title,
+        content: result.data.content,
+        userId: session.user.id,
+        topicId: topic.id,
+      },
     });
-
-    if (!result.success) {
-        return {
-          errors: result.error.flatten().fieldErrors,
-        };
-      }
-    
-    const session = await auth();
-    if (!session || !session.user) {
-        return {
-          errors: {
-            _form: ["You must be signed in to create a topic!"],
-          },
-        };
-      }
-
+  } catch (err: unknown) {
+    if (err instanceof Error) {
       return {
-        errors: {},
-      }
+        errors: {
+          _form: [err.message],
+        },
+      };
+    } else {
+      return {
+        errors: {
+          _form: ["Failed to create post"],
+        },
+      };
+    }
+  }
+
+  revalidatePath(paths.topicShow(slug));
+  redirect(paths.postShow(slug, post.id));
 }
