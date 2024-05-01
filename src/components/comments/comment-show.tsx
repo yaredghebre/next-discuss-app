@@ -1,6 +1,5 @@
 import { fetchCommentsByPostId } from "@/db/queries/comments";
 import Image from "next/image";
-import { Button } from "@nextui-org/react";
 import CommentCreateForm from "@/components/comments/comment-create-form";
 
 interface CommentShowProps {
