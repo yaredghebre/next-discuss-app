@@ -5,8 +5,8 @@ import {
   NavbarBrand,
   NavbarContent,
   NavbarItem,
-  Input,
 } from "@nextui-org/react";
+import SearchInput from "./search-input";
 
 export default function Header() {
   return (
@@ -16,9 +16,10 @@ export default function Header() {
           Discuss App
         </Link>
       </NavbarBrand>
+
       <NavbarContent justify="center">
         <NavbarItem>
-          <Input />
+          <SearchInput />
         </NavbarItem>
       </NavbarContent>
 
